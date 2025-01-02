@@ -1,0 +1,369 @@
+openapi: 3.0.0
+info:
+  title: WhatsApp Ticketing API
+  version: 1.0.0
+  description: API for WhatsApp-based event ticketing system
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+paths:
+  /users/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                phone:
+                  type: string
+                email:
+                  type: string
+              required:
+                - name
+                - phone
+                - email
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  token:
+                    type: string
+        '400':
+          description: Invalid input or duplicate phone/email
+        '500':
+          description: Server error
+
+  /users/{id}:
+    get:
+      summary: Get user details by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  phone:
+                    type: string
+                  email:
+                    type: string
+                  createdAt:
+                    type: string
+                    format: date-time
+        '404':
+          description: User not found
+        '500':
+          description: Server error
+
+  /events:
+    post:
+      summary: Create a new event
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                date:
+                  type: string
+                  format: date-time
+                location:
+                  type: string
+                goldPassLimit:
+                  type: integer
+                  minimum: 0
+                silverPassLimit:
+                  type: integer
+                  minimum: 0
+                platinumPassLimit:
+                  type: integer
+                  minimum: 0
+              required:
+                - name
+                - date
+                - location
+                - goldPassLimit
+                - silverPassLimit
+                - platinumPassLimit
+      responses:
+        '201':
+          description: Event created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+    get:
+      summary: Get all events
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '500':
+          description: Server error
+
+  /events/{id}:
+    get:
+      summary: Get event details by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '404':
+          description: Event not found
+        '500':
+          description: Server error
+
+    put:
+      summary: Update an event
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                date:
+                  type: string
+                  format: date-time
+                location:
+                  type: string
+                goldPassLimit:
+                  type: integer
+                  minimum: 0
+                silverPassLimit:
+                  type: integer
+                  minimum: 0
+                platinumPassLimit:
+                  type: integer
+                  minimum: 0
+              required:
+                - name
+                - date
+                - location
+                - goldPassLimit
+                - silverPassLimit
+                - platinumPassLimit
+      responses:
+        '200':
+          description: Event updated successfully
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Event not found or not authorized
+        '500':
+          description: Server error
+
+    delete:
+      summary: Delete an event
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Event not found or not authorized
+        '500':
+          description: Server error
+
+paths:
+  /passes:
+    post:
+      summary: Generate a new pass
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eventId:
+                  type: integer
+                category:
+                  type: string
+                  enum: ['Gold', 'Silver', 'Platinum']
+              required:
+                - eventId
+                - category
+      responses:
+        '201':
+          description: Pass created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '400':
+          description: Invalid input or no passes available
+        '401':
+          description: Unauthorized
+        '404':
+          description: Event not found
+        '500':
+          description: Server error
+
+    get:
+      summary: Get user's passes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of user's passes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pass'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /passes/{id}/status:
+    put:
+      summary: Update pass status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: ['Active', 'Used', 'Cancelled']
+              required:
+                - status
+      responses:
+        '200':
+          description: Pass status updated successfully
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Pass not found or not authorized
+        '500':
+          description: Server error
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Event:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        date:
+          type: string
+          format: date-time
+        location:
+          type: string
+        goldPassLimit:
+          type: integer
+        silverPassLimit:
+          type: integer
+        platinumPassLimit:
+          type: integer
+        organizerId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time

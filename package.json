@@ -1,0 +1,27 @@
+{
+  "name": "whatsapp-ticketing",
+  "version": "1.0.0",
+  "description": "WhatsApp-based event ticketing system",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest tests/*.test.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.3.1",
+    "express-rate-limit": "^6.8.1",
+    "swagger-ui-express": "^5.0.0",
+    "yamljs": "^0.3.0",
+    "validator": "^13.11.0",
+    "express-validator": "^7.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "nodemon": "^3.0.2"
+  }
+}
