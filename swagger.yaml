@@ -1,183 +1,112 @@
 openapi: 3.0.0
 info:
-  title: WhatsApp Ticketing API
+  title: Ticketing System API
   version: 1.0.0
-  description: API for WhatsApp-based event ticketing system
-
+  description: API for managing users, events, and passes in a ticketing system
 servers:
   - url: http://localhost:3000
     description: Local development server
-
 paths:
-  /users/register:
+  /users:
+    get:
+      summary: Get all users
+      description: Returns a list of all users
+      responses:
+        '200':
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
     post:
-      summary: Register a new user
+      summary: Create a new user
+      description: Creates a new user in the system
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                phone:
-                  type: string
-                email:
-                  type: string
-              required:
-                - name
-                - phone
-                - email
+              $ref: '#/components/schemas/User'
       responses:
         '201':
-          description: User registered successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                  token:
-                    type: string
+          description: User created successfully
         '400':
-          description: Invalid input or duplicate phone/email
-        '500':
-          description: Server error
+          description: Invalid input
 
   /users/{id}:
     get:
-      summary: Get user details by ID
+      summary: Get a user by ID
+      description: Returns a single user
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         '200':
-          description: User details retrieved successfully
+          description: User found
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                  name:
-                    type: string
-                  phone:
-                    type: string
-                  email:
-                    type: string
-                  createdAt:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/User'
         '404':
           description: User not found
-        '500':
-          description: Server error
 
   /events:
-    post:
-      summary: Create a new event
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                description:
-                  type: string
-                date:
-                  type: string
-                  format: date-time
-                location:
-                  type: string
-                goldPassLimit:
-                  type: integer
-                  minimum: 0
-                silverPassLimit:
-                  type: integer
-                  minimum: 0
-                platinumPassLimit:
-                  type: integer
-                  minimum: 0
-              required:
-                - name
-                - date
-                - location
-                - goldPassLimit
-                - silverPassLimit
-                - platinumPassLimit
-      responses:
-        '201':
-          description: Event created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-        '400':
-          description: Invalid input
-        '401':
-          description: Unauthorized
-        '500':
-          description: Server error
-
     get:
       summary: Get all events
+      description: Returns a list of all events
       responses:
         '200':
-          description: List of events
+          description: A list of events
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Event'
-        '500':
-          description: Server error
+    post:
+      summary: Create a new event
+      description: Creates a new event in the system
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+      responses:
+        '201':
+          description: Event created successfully
+        '400':
+          description: Invalid input
 
   /events/{id}:
     get:
-      summary: Get event details by ID
+      summary: Get an event by ID
+      description: Returns a single event
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         '200':
-          description: Event details retrieved successfully
+          description: Event found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Event'
         '404':
           description: Event not found
-        '500':
-          description: Server error
 
-    put:
-      summary: Update an event
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+  /passes/generate:
+    post:
+      summary: Generate a virtual pass
+      description: Generates a virtual pass image with user and event details
       requestBody:
         required: true
         content:
@@ -185,69 +114,89 @@ paths:
             schema:
               type: object
               properties:
-                name:
+                userName:
                   type: string
-                description:
+                  description: Name of the user
+                eventName:
                   type: string
-                date:
+                  description: Name of the event
+                eventDate:
                   type: string
-                  format: date-time
-                location:
+                  format: date
+                  description: Date of the event
+                passCategory:
                   type: string
-                goldPassLimit:
-                  type: integer
-                  minimum: 0
-                silverPassLimit:
-                  type: integer
-                  minimum: 0
-                platinumPassLimit:
-                  type: integer
-                  minimum: 0
+                  description: Category of the pass
               required:
-                - name
-                - date
-                - location
-                - goldPassLimit
-                - silverPassLimit
-                - platinumPassLimit
+                - userName
+                - eventName
+                - eventDate
+                - passCategory
       responses:
         '200':
-          description: Event updated successfully
+          description: Successfully generated pass image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
         '400':
-          description: Invalid input
-        '401':
-          description: Unauthorized
-        '404':
-          description: Event not found or not authorized
+          description: Invalid input parameters
         '500':
-          description: Server error
+          description: Internal server error
 
-    delete:
-      summary: Delete an event
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+  /passes/send:
+    post:
+      summary: Send pass via WhatsApp
+      description: Sends a generated pass to a user via WhatsApp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phoneNumber:
+                  type: string
+                  description: User's phone number in international format
+                userName:
+                  type: string
+                  description: Name of the user
+                eventName:
+                  type: string
+                  description: Name of the event
+                eventDate:
+                  type: string
+                  format: date
+                  description: Date of the event
+                passCategory:
+                  type: string
+                  description: Category of the pass
+              required:
+                - phoneNumber
+                - userName
+                - eventName
+                - eventDate
+                - passCategory
       responses:
         '200':
-          description: Event deleted successfully
-        '401':
-          description: Unauthorized
-        '404':
-          description: Event not found or not authorized
+          description: Pass successfully sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          description: Invalid input parameters
         '500':
-          description: Server error
+          description: Internal server error
 
-paths:
-  /passes:
+  /passes/send-batch:
     post:
-      summary: Generate a new pass
-      security:
-        - bearerAuth: []
+      summary: Send passes to multiple users
+      description: Sends passes to all users of an event with random delays between sends
       requestBody:
         required: true
         content:
@@ -256,114 +205,63 @@ paths:
               type: object
               properties:
                 eventId:
-                  type: integer
-                category:
                   type: string
-                  enum: ['Gold', 'Silver', 'Platinum']
+                  description: ID of the event
               required:
                 - eventId
-                - category
-      responses:
-        '201':
-          description: Pass created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-        '400':
-          description: Invalid input or no passes available
-        '401':
-          description: Unauthorized
-        '404':
-          description: Event not found
-        '500':
-          description: Server error
-
-    get:
-      summary: Get user's passes
-      security:
-        - bearerAuth: []
       responses:
         '200':
-          description: List of user's passes
+          description: Batch sending completed
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Pass'
-        '401':
-          description: Unauthorized
-        '500':
-          description: Server error
-
-  /passes/{id}/status:
-    put:
-      summary: Update pass status
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  enum: ['Active', 'Used', 'Cancelled']
-              required:
-                - status
-      responses:
-        '200':
-          description: Pass status updated successfully
+                  type: object
+                  properties:
+                    userId:
+                      type: string
+                    success:
+                      type: boolean
+                    error:
+                      type: string
+                      nullable: true
         '400':
-          description: Invalid input
-        '401':
-          description: Unauthorized
-        '404':
-          description: Pass not found or not authorized
+          description: Invalid input parameters
         '500':
-          description: Server error
+          description: Internal server error
 
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
   schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+      required:
+        - name
+        - email
+        - phone
+
     Event:
       type: object
       properties:
         id:
-          type: integer
-        name:
           type: string
-        description:
+        name:
           type: string
         date:
           type: string
-          format: date-time
+          format: date
         location:
           type: string
-        goldPassLimit:
-          type: integer
-        silverPassLimit:
-          type: integer
-        platinumPassLimit:
-          type: integer
-        organizerId:
-          type: integer
-        createdAt:
-          type: string
-          format: date-time
+      required:
+        - name
+        - date
+        - location
