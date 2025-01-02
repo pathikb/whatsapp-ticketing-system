@@ -22,17 +22,6 @@ function initializeDatabase() {
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS passes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    eventId INTEGER NOT NULL,
-    userId INTEGER NOT NULL,
-    category TEXT CHECK(category IN ('Gold', 'Silver', 'Platinum')) NOT NULL,
-    status TEXT CHECK(status IN ('Active', 'Used', 'Cancelled')) DEFAULT 'Active',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(eventId) REFERENCES events(id),
-    FOREIGN KEY(userId) REFERENCES users(id)
-  )`);
-
   db.run(`CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -45,6 +34,17 @@ function initializeDatabase() {
     platinumPassLimit INTEGER DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(organizerId) REFERENCES users(id)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS passes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    eventId INTEGER NOT NULL,
+    userId INTEGER NOT NULL,
+    category TEXT CHECK(category IN ('Gold', 'Silver', 'Platinum')) NOT NULL,
+    status TEXT CHECK(status IN ('Active', 'Used', 'Cancelled')) DEFAULT 'Active',
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(eventId) REFERENCES events(id),
+    FOREIGN KEY(userId) REFERENCES users(id)
   )`);
 }
 

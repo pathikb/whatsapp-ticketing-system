@@ -1,10 +1,11 @@
 const express = require('express');
-const router = express.Router();
+const { body, validationResult } = require('express-validator');
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
-const { body, validationResult } = require('express-validator');
 
-// Generate a new pass
+const router = express.Router();
+
+// Generate pass for a user for an event
 router.post('/', authMiddleware, [
   body('eventId').isInt().withMessage('Event ID must be a valid integer'),
   body('category').isIn(['Gold', 'Silver', 'Platinum']).withMessage('Invalid pass category')
@@ -18,41 +19,27 @@ router.post('/', authMiddleware, [
   const userId = req.user.id;
 
   try {
-    // Check event pass limits
-    const event = await new Promise((resolve, reject) => {
+    // Check if user already has a pass for this event
+    const existingPass = await new Promise((resolve, reject) => {
       db.get(
-        `SELECT goldPassLimit, silverPassLimit, platinumPassLimit FROM events WHERE id = ?`,
-        [eventId],
+        `SELECT * FROM passes WHERE userId = ? AND eventId = ?`,
+        [userId, eventId],
         (err, row) => {
           if (err) return reject(err);
-          if (!row) return reject({ status: 404, message: 'Event not found' });
           resolve(row);
         }
       );
     });
 
-    // Check available passes for the selected category
-    const passCount = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT COUNT(*) as count FROM passes WHERE eventId = ? AND category = ?`,
-        [eventId, category],
-        (err, row) => {
-          if (err) return reject(err);
-          resolve(row.count);
-        }
-      );
-    });
-
-    const limit = event[`${category.toLowerCase()}PassLimit`];
-    if (passCount >= limit) {
-      return res.status(400).json({ error: `No more ${category} passes available` });
+    if (existingPass) {
+      return res.status(400).json({ error: 'User already has a pass for this event' });
     }
 
-    // Create the pass
+    // Insert new pass
     const result = await new Promise((resolve, reject) => {
       db.run(
-        `INSERT INTO passes (eventId, userId, category) VALUES (?, ?, ?)`,
-        [eventId, userId, category],
+        `INSERT INTO passes (userId, eventId, category) VALUES (?, ?, ?)`,
+        [userId, eventId, category],
         function(err) {
           if (err) return reject(err);
           resolve(this.lastID);
@@ -62,22 +49,39 @@ router.post('/', authMiddleware, [
 
     return res.status(201).json({ id: result });
   } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch pass details by ID
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    const pass = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM passes WHERE id = ?`,
+        [req.params.id],
+        (err, row) => {
+          if (err) return reject(err);
+          if (!row) return reject({ status: 404, message: 'Pass not found' });
+          resolve(row);
+        }
+      );
+    });
+
+    return res.json(pass);
+  } catch (err) {
     const status = err.status || 500;
     return res.status(status).json({ error: err.message });
   }
 });
 
-// Get user's passes
-router.get('/', authMiddleware, async (req, res) => {
+// Fetch all passes for an event
+router.get('/event/:eventId', authMiddleware, async (req, res) => {
   try {
     const passes = await new Promise((resolve, reject) => {
       db.all(
-        `SELECT p.id, p.eventId, p.category, p.status, p.createdAt, 
-                e.name as eventName, e.date as eventDate
-         FROM passes p
-         JOIN events e ON p.eventId = e.id
-         WHERE p.userId = ?`,
-        [req.user.id],
+        `SELECT * FROM passes WHERE eventId = ?`,
+        [req.params.eventId],
         (err, rows) => {
           if (err) return reject(err);
           resolve(rows);
@@ -91,36 +95,23 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Update pass status
-router.put('/:id/status', authMiddleware, [
-  body('status').isIn(['Active', 'Used', 'Cancelled']).withMessage('Invalid status')
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { status } = req.body;
-
+// Fetch all passes for a user
+router.get('/user/:userId', authMiddleware, async (req, res) => {
   try {
-    await new Promise((resolve, reject) => {
-      db.run(
-        `UPDATE passes SET status = ? WHERE id = ? AND userId = ?`,
-        [status, req.params.id, req.user.id],
-        function(err) {
+    const passes = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT * FROM passes WHERE userId = ?`,
+        [req.params.userId],
+        (err, rows) => {
           if (err) return reject(err);
-          if (this.changes === 0) {
-            return reject({ status: 404, message: 'Pass not found or not authorized' });
-          }
-          resolve();
+          resolve(rows);
         }
       );
     });
 
-    return res.json({ message: 'Pass status updated successfully' });
+    return res.json(passes);
   } catch (err) {
-    const status = err.status || 500;
-    return res.status(status).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 

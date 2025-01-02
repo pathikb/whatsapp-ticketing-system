@@ -6,13 +6,14 @@ describe('Pass API', () => {
   let authToken;
   let userId;
   let eventId;
+  let passId;
 
   beforeAll(async () => {
-    // Initialize test database and create a test user
+    // Initialize test database
     await new Promise((resolve) => {
-      db.run('DELETE FROM users', () => {
+      db.run('DELETE FROM passes', () => {
         db.run('DELETE FROM events', () => {
-          db.run('DELETE FROM passes', resolve);
+          db.run('DELETE FROM users', resolve);
         });
       });
     });
@@ -35,7 +36,7 @@ describe('Pass API', () => {
       .set('Authorization', `Bearer ${authToken}`)
       .send({
         name: 'Test Event',
-        description: 'Test Description',
+        description: 'This is a test event',
         date: '2025-12-31T23:59:59Z',
         location: 'Test Location',
         goldPassLimit: 10,
@@ -47,7 +48,7 @@ describe('Pass API', () => {
   });
 
   describe('POST /passes', () => {
-    it('should generate a new pass', async () => {
+    it('should create a new pass', async () => {
       const res = await request(app)
         .post('/passes')
         .set('Authorization', `Bearer ${authToken}`)
@@ -58,48 +59,45 @@ describe('Pass API', () => {
       
       expect(res.statusCode).toEqual(201);
       expect(res.body).toHaveProperty('id');
+      passId = res.body.id;
     });
 
-    it('should return 400 for invalid category', async () => {
+    it('should return 400 for invalid input', async () => {
       const res = await request(app)
         .post('/passes')
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          eventId: eventId,
+          eventId: 'invalid',
           category: 'Invalid'
-        });
-      
-      expect(res.statusCode).toEqual(400);
-    });
-
-    it('should return 400 when pass limit is reached', async () => {
-      // Generate maximum number of Platinum passes
-      for (let i = 0; i < 5; i++) {
-        await request(app)
-          .post('/passes')
-          .set('Authorization', `Bearer ${authToken}`)
-          .send({
-            eventId: eventId,
-            category: 'Platinum'
-          });
-      }
-
-      const res = await request(app)
-        .post('/passes')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          eventId: eventId,
-          category: 'Platinum'
         });
       
       expect(res.statusCode).toEqual(400);
     });
   });
 
-  describe('GET /passes', () => {
-    it('should get user passes', async () => {
+  describe('GET /passes/:id', () => {
+    it('should get pass details', async () => {
       const res = await request(app)
-        .get('/passes')
+        .get(`/passes/${passId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+      
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('id', passId);
+    });
+
+    it('should return 404 for non-existent pass', async () => {
+      const res = await request(app)
+        .get('/passes/9999')
+        .set('Authorization', `Bearer ${authToken}`);
+      
+      expect(res.statusCode).toEqual(404);
+    });
+  });
+
+  describe('GET /passes/event/:eventId', () => {
+    it('should get all passes for an event', async () => {
+      const res = await request(app)
+        .get(`/passes/event/${eventId}`)
         .set('Authorization', `Bearer ${authToken}`);
       
       expect(res.statusCode).toEqual(200);
@@ -107,38 +105,14 @@ describe('Pass API', () => {
     });
   });
 
-  describe('PUT /passes/:id/status', () => {
-    it('should update pass status', async () => {
-      // First create a pass
-      const createRes = await request(app)
-        .post('/passes')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          eventId: eventId,
-          category: 'Silver'
-        });
-
-      const passId = createRes.body.id;
-      
+  describe('GET /passes/user/:userId', () => {
+    it('should get all passes for a user', async () => {
       const res = await request(app)
-        .put(`/passes/${passId}/status`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          status: 'Used'
-        });
+        .get(`/passes/user/${userId}`)
+        .set('Authorization', `Bearer ${authToken}`);
       
       expect(res.statusCode).toEqual(200);
-    });
-
-    it('should return 404 for non-existent pass', async () => {
-      const res = await request(app)
-        .put('/passes/9999/status')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          status: 'Used'
-        });
-      
-      expect(res.statusCode).toEqual(404);
+      expect(Array.isArray(res.body)).toBeTruthy();
     });
   });
 });
